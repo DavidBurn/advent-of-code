@@ -1,26 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb 14 12:08:10 2019
+Created on Sat Feb 16 07:56:05 2019
 
 @author: dave
 """
-
-import numpy as np
 import pandas as pd
+import time
 import re
+import numpy as np
+
+start = time.time()
 
 with open('day4input.txt') as file:
     data = file.read().split('\n')
-
-df = pd.DataFrame([x.split(']') for x in data])
-df.drop(1267, inplace=True)
-
-df[0] = df[0].str.strip('[').str.replace('1518','2000')
-df[0] = pd.to_datetime(df[0])
-
-df.sort_values(by=0,inplace=True)
-df['diff'] = df[0].diff()
+    
+def change_date(row):
+    date = row[0].strip('[').replace('1518','2000')
+    return pd.to_datetime(date)
 
 def get_mins(row):
     try:
@@ -31,32 +28,37 @@ def get_mins(row):
     except AttributeError:
         pass
     
-df['minutes'] = df.apply(get_mins,axis=1)
-
 def get_guard(row):
     m = re.search(r'\d+', row[1])
     if m:
         return int(m.group())
     return 0
 
-df['guard'] = df.apply(get_guard, axis=1)
-df['guard'].replace(to_replace=0, method='ffill', inplace=True)
-
+df = (
+    pd.DataFrame([x.split(']') for x in data])
+    .drop(1267)
+    .assign(date=lambda df: df.apply(change_date,axis=1))
+    .sort_values(by='date')
+    .assign(
+        diff=lambda df: df['date'].diff(),
+        minutes=lambda df: df.apply(get_mins, axis=1),
+        guard=lambda df: df.apply(get_guard, axis=1),
+    )
+    .assign(guard=lambda df: df['guard'].replace(to_replace=0, method='ffill'))
+)
+    
 mins_per_guard = df.groupby('guard',as_index=False)['minutes'].sum()
 top_sleeper_idx = mins_per_guard['minutes'].idxmax()
 top_sleeper = mins_per_guard['guard'][top_sleeper_idx]
 
-def min_of_waking(row):
-    if 'wake' in row[1]:
-        return row[0].minute
-    return 0
-
-df['min_of_waking'] = df.apply(min_of_waking,axis=1)
-
 def minute_array(row):
     empty = np.zeros(60)
-    m = row['min_of_waking']
-    empty[m-row['minutes']:m] += 1
+    if 'wake' in row[1]:
+        m = row['date'].minute
+        lead = [0 for x in range(m-row['minutes'])]
+        ones = [1 for x in range(row['minutes'])]
+        post = [0 for x in range(60-len(lead)-len(ones))]
+        return empty + (lead+ones+post)
     return empty
 
 minute_arrays = df[df['guard']==top_sleeper].apply(minute_array, axis=1)
@@ -79,3 +81,6 @@ top = sorted(min_and_total, reverse=True)[0]
 print('Guard number {} was asleep {} times on minute {}'.format(top[2],top[0],top[1]))
 print('Answer : {}'.format(top[2]*top[1]))
 
+end = time.time()
+
+print('Time taken : {}'.format(end-start))

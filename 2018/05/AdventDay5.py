@@ -9,6 +9,9 @@ Advent of Code - Day 5
 """
 
 import string
+import time
+
+start = time.time()
 
 with open('/home/dave/Downloads/adventday5.txt') as file:
     chemical = file.read().strip('\n')
@@ -32,7 +35,6 @@ def fully_react(chemical):
                 chemical = chemical.replace(r,'')
                 counter+=1
         if counter == 0:
-            print('No more reactions, number left : ',len(chemical))
             letsgo = False
     return len(chemical)
 
@@ -42,9 +44,6 @@ print(part1_answer)
 """
 Part Two
 """
-
-
-
 answers = []
 
 for lower, upper in zip(l, u):
@@ -54,7 +53,19 @@ for lower, upper in zip(l, u):
     
 print(sorted(zip(answers,l)))
 
+end =time.time()
+
+print(end-start)
+
+def equal_opposite_case(x, y):
+    return x != y and x.lower() == y.lower()
 
 
+def react(so_far, new_element):
+    if equal_opposite_case(so_far[-1], new_element):
+        so_far = so_far[:-1]
+    else:
+        so_far.append(new_element)
+    return so_far
 
-
+functools.reduce(react, chemical, [])
